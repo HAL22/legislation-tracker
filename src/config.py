@@ -1,4 +1,12 @@
 import sqlite3
+import constants
+import tiktoken
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain.docstore.document import Document
+import pinecone
+import password
+from langchain.vectorstores import Pinecone
+from langchain.embeddings.openai import OpenAIEmbeddings
 
 def create_sqlite_database(filename):
     """ create a database connection to an SQLite database """
@@ -40,10 +48,6 @@ def create_legislation_sql():
     """
     return sql_create_legislation_table
 
-def get_text_from_file(filename):
-    with open(filename, 'r') as file:
-        text = file.read()
-    return text
 
 def insert_legislation(conn, legislation):
     """
@@ -51,9 +55,85 @@ def insert_legislation(conn, legislation):
     :param conn:
     :param legislation:
     """
-    sql = ''' INSERT INTO legislation(title, description, summary, region, status, type, index, date)
-              VALUES(?,?,?,?,?,?,?,?) '''
+    sql = ''' INSERT INTO legislation(title, description, summary, region, status, type, index, date, link)
+              VALUES(?,?,?,?,?,?,?,?,?) '''
     cur = conn.cursor()
     cur.execute(sql, legislation.to_tuple())
     conn.commit()
+
+def create_sql_config():
+    create_sqlite_database("legislations.db")
+
+    conn = sqlite3.connect("legislations.db")
+
+    create_sqlite_table(conn, create_legislation_sql())
+
+    for legislation in constants.get_legislations():
+        insert_legislation(conn, legislation)
+
+    conn.close()
+
+### Vector Database
+
+def tiktoken_len(text):
+    tokenizer = tiktoken.get_encoding('cl100k_base')
+    tokens = tokenizer.encode(
+        text,
+        disallowed_special=()
+    )
+    return len(tokens)
+
+def split_text_into_chunks(text, chunk_size=500):
+    text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=chunk_size,
+    chunk_overlap=20,  # number of tokens overlap between chunks
+    length_function=tiktoken_len,
+    separators=['\n\n', '\n', ' ', '']
+    )
+
+    text_chunks = text_splitter.split_text(text)
+
+    docs = [Document(page_content=t) for t in text_chunks]
+
+    return docs
+
+def create_pinecone_index(index_name,text,embeddings):
+    pinecone.init(
+    api_key=password.PINECONE_API_KEY,
+    environment=password.PINECONE_ENV
+    )
+
+    if index_name not in pinecone.list_indexes():
+        pinecone.create_index(
+            name=index_name,
+            dimension=1536  
+        )
+
+        docs = split_text_into_chunks(text)
+
+        Pinecone.from_documents(docs, embeddings, index_name=index_name)
+
+def create_indexs():
+    embeddings=OpenAIEmbeddings(model="text-embedding-ada-002")
+
+    for legislation in constants.get_legislations():
+        create_pinecone_index(legislation.index,legislation.description,embeddings)
+
+
+if __name__ == "__main__":
+    create_sql_config()
+    create_indexs()
+ 
+ 
+ 
+ 
+ 
+
+
+
+
+
+
+
+
 
