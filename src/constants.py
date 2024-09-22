@@ -22,7 +22,7 @@ The Climate Change Advisory Commission, established by this bill, must provide r
             region="USA",
             status="Introduced",
             type_="Environmental Protection",
-            index="ccr",
+            index_pn="ccr",
             date="12/06/2023",
             link="https://www.congress.gov/bill/118th-congress/senate-bill/3416?q=%7B%22search%22:%22climate%22%7D&s=1&r=6"
         ),
@@ -37,19 +37,23 @@ The bill also directs the NMFS and the USFWS to review agreements with foreign g
             region="USA",
             status="Introduced",
             type_="Environmental Protection",
-            index="mmc",
+            index_pn="mmc",
             date="03/07/2023",
             link="https://www.congress.gov/bill/118th-congress/house-bill/1383?s=1&r=14&q=%7B%22search%22:%22climate%22%7D"
         ),
         legislation.Legislation(
-            title="",
-            description="",
-            summary="",
-            region="",
-            status="",
-            type_="",
-            index="",
-            date="",
-            link=""
+            title="No Taxpayer Funding for United Nations Green Climate Fund Act",
+            description=ntf_text,
+            summary="""
+No Taxpayer Funding for United Nations Green Climate Fund Act
+This bill requires the Department of State to withhold the same proportion of funds from the mandatory U.S. contribution to the United Nations as the proportion of the U.N. budget made available to the U.N. Green Climate Fund. Such withheld funds must be rescinded and may not be considered arrears to be repaid to the United Nations.
+The bill also prohibits the State Department from making voluntary contributions to the U.N. Green Climate Fund.
+            """,
+            region="USA",
+            status="Introduced",
+            type_="Environmental Protection",
+            index_pn="ntf",
+            date="06/29/2023",
+            link="https://www.congress.gov/bill/118th-congress/house-bill/3053?s=1&r=12&q=%7B%22search%22:%22climate%22%7D"
         )
     ]

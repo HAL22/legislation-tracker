@@ -1,47 +1,109 @@
 import pinecone
-from langchain.vectorstores import Pinecone
-from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain_community.vectorstores import Pinecone as PineconeStore
+from langchain_openai import OpenAIEmbeddings
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
-from langchain import OpenAI
+from langchain_openai import OpenAI
 from langchain.agents import Tool
 import os
-from langchain.chat_models import ChatOpenAI
-from langchain.agents import initialize_agent
+from langchain_openai import ChatOpenAI
+from langchain.agents import AgentExecutor, create_react_agent
+from . import password
+from pinecone import Pinecone, ServerlessSpec
+from langchain import hub
+from langchain_pinecone import PineconeVectorStore
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnablePassthrough
+from langchain.chains import create_history_aware_retriever
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain.chains import create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain_core.messages import HumanMessage, AIMessage
+from typing import AsyncIterator
+from langchain_core.chat_history import BaseChatMessageHistory
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_community.chat_message_histories import ChatMessageHistory
+from typing import Dict
+from langchain_core.runnables import RunnableBranch
+
+os.environ['OPENAI_API_KEY'] = password.OPENAI_API_KEY
+os.environ['PINECONE_API_KEY'] = password.PINECONE_API_KEY
+
+store = {}
 
 class Chatbot:
     def __init__(self,index_name):
-        index = Pinecone.from_existing_index(index_name,OpenAIEmbeddings(model="text-embedding-ada-002"))
+        pc = Pinecone(
+        api_key=os.environ.get("PINECONE_API_KEY")
+        )   
+        
+        llm = ChatOpenAI(model='gpt-3.5-turbo')
 
-        self.memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+        embeddings = OpenAIEmbeddings(model="text-embedding-ada-002")
 
-        qa = ConversationalRetrievalChain.from_llm(OpenAI(temperature=0), index.as_retriever(), memory=self.memory)
+        vector_store = PineconeVectorStore(index_name=index_name,embedding=embeddings)
 
-        tools = [
-        Tool(
-            name='Knowledge Base',
-            func=qa.run,
-            description=(
-                'use this tool when answering climate legislation queries'
-            )
-        )
+        retriever = vector_store.as_retriever(k=10)
+
+        question_answering_prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "Answer the user's questions based on the below context:\n\n{context}",
+            ),
+            MessagesPlaceholder(variable_name="messages"),
         ]
-
-        llm = ChatOpenAI(
-        openai_api_key=os.environ['OPENAI_API_KEY'],
-        model_name='gpt-3.5-turbo',
-        temperature=0.0
         )
 
-        self.agent =  initialize_agent(
-        agent='chat-conversational-react-description',
-        tools=tools,
-        llm=llm,
-        verbose=True,
-        max_iterations=3,
-        early_stopping_method='generate',
-        memory=self.memory 
+        query_transform_prompt = ChatPromptTemplate.from_messages(
+        [
+            MessagesPlaceholder(variable_name="messages"),
+            (
+            "user",
+            "Given the above conversation, generate a search query to look up in order to get information relevant to the conversation. Only respond with the query, nothing else.",
+            ),
+        ]
         )
 
-    def query(self, query):
-        return self.agent(query)['output']
+        query_transforming_retriever_chain = RunnableBranch(
+            (
+                lambda x: len(x.get("messages", [])) == 1,
+                # If only one message, then we just pass that message's content to retriever
+                (lambda x: x["messages"][-1].content) | retriever,
+            ),
+            # If messages, then we pass inputs to LLM chain to transform the query, then pass to retriever
+            query_transform_prompt | llm | StrOutputParser() | retriever,
+        ).with_config(run_name="chat_retriever_chain")
+
+        document_chain = create_stuff_documents_chain(llm, question_answering_prompt)
+
+        conversational_retrieval_chain = RunnablePassthrough.assign(
+            context=query_transforming_retriever_chain,
+        ).assign(
+            answer=document_chain,
+        )
+
+        self.agent = conversational_retrieval_chain
+
+        self.history = ChatMessageHistory()
+
+
+    async def query(self, query: str) -> AsyncIterator:
+        self.history.add_user_message(query)
+        response = await self.agent.ainvoke({"messages": self.history.messages})
+        
+        # Assuming response is already a stream, we'll just yield it directly
+        yield response
+
+        self.history.add_ai_message(response["answer"])
+
+def format_docs(docs):
+    return "\n\n".join(doc.page_content for doc in docs)
+
+def get_session_history(session_id: str) -> BaseChatMessageHistory:
+    if session_id not in store:
+        store[session_id] = ChatMessageHistory()
+    return store[session_id]
+
+def parse_retriever_input(params: Dict):
+    return params["messages"][-1].content

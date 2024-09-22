@@ -2,3 +2,10 @@ langchain
 pinecone-client
 tiktoken
 openai
+fastapi
+langchain-community
+langchain-openai
+uvicorn
+langchain_core
+langchain_pinecone
+'uvicorn[standard]'

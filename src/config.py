@@ -5,8 +5,14 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.docstore.document import Document
 import pinecone
 import password
-from langchain.vectorstores import Pinecone
-from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain_community.vectorstores import Pinecone as PineconeStore
+from langchain_openai import OpenAIEmbeddings
+import os
+import os
+from pinecone import Pinecone, ServerlessSpec
+
+os.environ['OPENAI_API_KEY'] = password.OPENAI_API_KEY
+os.environ['PINECONE_API_KEY'] = password.PINECONE_API_KEY
 
 def create_sqlite_database(filename):
     """ create a database connection to an SQLite database """
@@ -32,6 +38,14 @@ def create_sqlite_table(conn, create_table_sql):
     except sqlite3.Error as e:
         print(e)
 
+def drop_sqlite_table(conn, table_name):
+    """ drop a table from the database """
+    try:
+        c = conn.cursor()
+        c.execute(f"DROP TABLE IF EXISTS {table_name}")
+    except sqlite3.Error as e:
+        print(e)
+
 def create_legislation_sql():
     sql_create_legislation_table = """
     CREATE TABLE IF NOT EXISTS legislation (
@@ -42,8 +56,9 @@ def create_legislation_sql():
         region text NOT NULL,
         status text NOT NULL,
         type text NOT NULL,
-        index text NOT NULL,
-        date text NOT NULL
+        index_pn text NOT NULL,
+        date text NOT NULL,
+        link text NOT NULL
     );
     """
     return sql_create_legislation_table
@@ -55,16 +70,19 @@ def insert_legislation(conn, legislation):
     :param conn:
     :param legislation:
     """
-    sql = ''' INSERT INTO legislation(title, description, summary, region, status, type, index, date, link)
+    sql = ''' INSERT INTO legislation(title, description, summary, region, status, type, index_pn, date, link)
               VALUES(?,?,?,?,?,?,?,?,?) '''
     cur = conn.cursor()
     cur.execute(sql, legislation.to_tuple())
     conn.commit()
 
 def create_sql_config():
+    print("Creating SQLite database...")
     create_sqlite_database("legislations.db")
 
     conn = sqlite3.connect("legislations.db")
+
+    #drop_sqlite_table(conn, "legislation")
 
     create_sqlite_table(conn, create_legislation_sql())
 
@@ -72,7 +90,7 @@ def create_sql_config():
         insert_legislation(conn, legislation)
 
     conn.close()
-
+    print("SQLite database created and populated.")
 ### Vector Database
 
 def tiktoken_len(text):
@@ -98,26 +116,35 @@ def split_text_into_chunks(text, chunk_size=500):
     return docs
 
 def create_pinecone_index(index_name,text,embeddings):
-    pinecone.init(
-    api_key=password.PINECONE_API_KEY,
-    environment=password.PINECONE_ENV
+    pc = Pinecone(
+        api_key=os.environ.get("PINECONE_API_KEY")
     )
 
-    if index_name not in pinecone.list_indexes():
-        pinecone.create_index(
+    if index_name not in pc.list_indexes().names():
+      
+
+        pc.create_index(
             name=index_name,
-            dimension=1536  
+            dimension=1536, 
+            metric='euclidean',
+            spec=ServerlessSpec(
+                cloud='aws',
+                region='us-east-1'
+            )
         )
 
         docs = split_text_into_chunks(text)
 
-        Pinecone.from_documents(docs, embeddings, index_name=index_name)
+        PineconeStore.from_documents(docs, embeddings, index_name=index_name)
 
 def create_indexs():
+    print("Creating Pinecone indexes...")
     embeddings=OpenAIEmbeddings(model="text-embedding-ada-002")
 
     for legislation in constants.get_legislations():
-        create_pinecone_index(legislation.index,legislation.description,embeddings)
+        create_pinecone_index(legislation.index_pn,legislation.description,embeddings)
+
+    print("Pinecone indexes created.")
 
 
 if __name__ == "__main__":
