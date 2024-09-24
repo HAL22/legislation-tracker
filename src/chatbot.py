@@ -8,7 +8,7 @@ from langchain.agents import Tool
 import os
 from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_react_agent
-from . import password
+import password
 from pinecone import Pinecone, ServerlessSpec
 from langchain import hub
 from langchain_pinecone import PineconeVectorStore
@@ -93,7 +93,7 @@ class Chatbot:
         response = await self.agent.ainvoke({"messages": self.history.messages})
         
         # Assuming response is already a stream, we'll just yield it directly
-        yield response
+        yield response['answer']
 
         self.history.add_ai_message(response["answer"])
 

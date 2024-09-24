@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Section Webpage</title>
+    <link rel="stylesheet" href="/static/tool.css">
+</head>
+<body>
+    <div class="toolbar">
+        <button onclick="showSection('text')">Text</button>
+        <button onclick="showSection('summary')">Summary</button>
+        <button onclick="showSection('chat-app')">Chatbot</button>
+        <button onclick="window.location.href='https://www.example.com'">Link</button>
+    </div>
+    <div class="content" id="content">
+        <div id="text">
+            <h2>Sample Text</h2>
+            <p id="text-content"></p>
+        </div>
+        <div id="summary" style="display: none;">
+            <h2>Summary</h2>
+            <p id="summary-content"></p>
+        </div>
+        <div id="chat-app" style="display: none;">
+            <div class="chat-header">Chat with LLM</div>
+            <div class="connection-status" id="connection-status">Connecting...</div>
+            <div id="chat-container"></div>
+            <div class="input-area">
+                <input type="text" id="user-input" placeholder="Type your message...">
+                <button id="send-button">➤</button>
+            </div>
+        </div>
+    </div>
+    <script src="/static/tool.js"></script>
+</body>
+</html>
