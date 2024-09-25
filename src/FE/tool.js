@@ -34,7 +34,8 @@ function startChat() {
     const connectionStatus = document.getElementById('connection-status');  
 
     // In a real implementation, replace this with your actual WebSocket server address
-    const socket = new WebSocket('ws://0.0.0.0:8000/ws');
+    console.log("Here"+jsonData.index_pn)
+    const socket = new WebSocket('ws://0.0.0.0:8000/ws/'+jsonData.index_pn);
 
     socket.onopen = function(event) {
         connectionStatus.textContent = 'Connected';

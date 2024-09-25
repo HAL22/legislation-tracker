@@ -9,17 +9,14 @@ from typing import AsyncGenerator, NoReturn
 import chatbot
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-
-
-
-cbot = chatbot.Chatbot("ccr")
+from contextlib import asynccontextmanager
 
 os.environ['OPENAI_API_KEY'] = password.OPENAI_API_KEY
 
 with open("src/FE/index.html") as f:
     html = f.read()
 
-async def get_ai_response(message: str) -> AsyncGenerator[str, None]:
+async def get_ai_response(cbot,message: str) -> AsyncGenerator[str, None]:
     response = cbot.query(message)
 
     all_content = ""
@@ -33,10 +30,20 @@ async def get_ai_response(message: str) -> AsyncGenerator[str, None]:
             # If the chunk doesn't have the expected structure, yield it as is
             yield str(chunk)
 
+"""""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    database = db.DB()
+    database.initialize_database()
+    yield
+
+app = FastAPI(lifespan=lifespan)
+"""
+
 app = FastAPI()
 
 app.mount("/static", StaticFiles(directory="src/FE"), name="static")
-
 
 @app.get("/")
 async def web_app() -> HTMLResponse:
@@ -52,15 +59,16 @@ async def read_legislation(region: str):
     return database.get_legislationsByRegion(region)
 
 
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket) -> NoReturn:
+@app.websocket("/ws/{client_id}")
+async def websocket_endpoint(websocket: WebSocket, client_id: str) -> NoReturn:
     """
     Websocket for AI responses
     """
+    cbot = chatbot.Chatbot(client_id)
     await websocket.accept()
     while True:
         message = await websocket.receive_text()
-        async for text in get_ai_response(message):
+        async for text in get_ai_response(cbot,message):
             await websocket.send_text(text)
 
 if __name__ == "__main__":
