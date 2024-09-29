@@ -8,7 +8,6 @@ from langchain.agents import Tool
 import os
 from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_react_agent
-import password
 from pinecone import Pinecone, ServerlessSpec
 from langchain import hub
 from langchain_pinecone import PineconeVectorStore
@@ -25,9 +24,6 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
 from typing import Dict
 from langchain_core.runnables import RunnableBranch
-
-os.environ['OPENAI_API_KEY'] = password.OPENAI_API_KEY
-os.environ['PINECONE_API_KEY'] = password.PINECONE_API_KEY
 
 store = {}
 

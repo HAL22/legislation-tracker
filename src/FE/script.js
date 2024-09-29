@@ -5,14 +5,15 @@ const legislationList = document.getElementById('legislation-list');
 // Simulated endpoint for fetching legislation data
 async function fetchLegislation(region) {
     try {
-        const response = await fetch(`http://0.0.0.0:8000/legislation/${region}`);
+        const response = await fetch(`https://green-legislation-nameless-cherry-1408.fly.dev/legislation/${region}`);
         if (!response.ok) {
             throw new Error(`Error fetching legislation: ${response.statusText}`);
         }
         const legislationData = await response.json();
+        console.log('Fetched legislation data:', legislationData); // Add this line for debugging
         return legislationData;
     } catch (error) {
-        console.error(error);
+        console.error('Error in fetchLegislation:', error);
         return [];
     }
 }
@@ -31,7 +32,7 @@ function displayLegislation(laws) {
                 "index_pn": law[7],
             }
             const encodedData = encodeURIComponent(JSON.stringify(jsonData));
-            window.location.href = `http://127.0.0.1:8000/static/tool.html?data=${encodedData}`;
+            window.location.href = `https://green-legislation-nameless-cherry-1408.fly.dev/static/tool.html?data=${encodedData}`;
         };
         legislationList.appendChild(li);
     });

@@ -35,7 +35,7 @@ function startChat() {
 
     // In a real implementation, replace this with your actual WebSocket server address
     console.log("Here"+jsonData.index_pn)
-    const socket = new WebSocket('ws://0.0.0.0:8000/ws/'+jsonData.index_pn);
+    const socket = new WebSocket(`wss://green-legislation-nameless-cherry-1408.fly.dev/ws/${jsonData.index_pn}`);
 
     socket.onopen = function(event) {
         connectionStatus.textContent = 'Connected';

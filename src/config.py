@@ -4,15 +4,11 @@ import tiktoken
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.docstore.document import Document
 import pinecone
-import password
 from langchain_community.vectorstores import Pinecone as PineconeStore
 from langchain_openai import OpenAIEmbeddings
 import os
 import os
 from pinecone import Pinecone, ServerlessSpec
-
-os.environ['OPENAI_API_KEY'] = password.OPENAI_API_KEY
-os.environ['PINECONE_API_KEY'] = password.PINECONE_API_KEY
 
 def create_sqlite_database(filename):
     """ create a database connection to an SQLite database """

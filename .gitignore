@@ -28,5 +28,4 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-resource/
 password.py

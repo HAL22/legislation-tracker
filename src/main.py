@@ -1,17 +1,14 @@
 from fastapi import FastAPI
 # from . import db
-import db
+from . import db
 import os
-import password
 from fastapi import FastAPI, WebSocket
 import uvicorn
 from typing import AsyncGenerator, NoReturn
-import chatbot
+from . import chatbot
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
-
-os.environ['OPENAI_API_KEY'] = password.OPENAI_API_KEY
 
 with open("src/FE/index.html") as f:
     html = f.read()
@@ -30,7 +27,7 @@ async def get_ai_response(cbot,message: str) -> AsyncGenerator[str, None]:
             # If the chunk doesn't have the expected structure, yield it as is
             yield str(chunk)
 
-"""""
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -39,9 +36,6 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(lifespan=lifespan)
-"""
-
-app = FastAPI()
 
 app.mount("/static", StaticFiles(directory="src/FE"), name="static")
 
@@ -55,8 +49,10 @@ async def web_app() -> HTMLResponse:
 @app.get("/legislation/{region}")
 async def read_legislation(region: str):
     database = db.DB()
-    print(region)
-    return database.get_legislationsByRegion(region)
+    print(f"Accessing legislation for region: {region}")
+    legislation = database.get_legislationsByRegion(region)
+    print(f"Retrieved legislation: {legislation}")
+    return legislation
 
 
 @app.websocket("/ws/{client_id}")
@@ -71,5 +67,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str) -> NoReturn:
         async for text in get_ai_response(cbot,message):
             await websocket.send_text(text)
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+@app.get("/test")
+async def test_endpoint():
+    print("Test endpoint accessed")  # This will appear in your Fly.io logs
+    return {"message": "Test endpoint working"}
